@@ -1,0 +1,203 @@
+﻿@page "/tours"
+@using VirtualTourBlazor.Models
+@using VirtualTourBlazor.Services
+@inject ITourService TourService
+
+<PageTitle>Туры - Виртуальный тур</PageTitle>
+
+<div class="container py-5">
+    <!-- Заголовок и поиск -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1><i class="bi bi-compass me-3"></i>Все туры</h1>
+        </div>
+        <div class="col-md-6">
+            <div class="d-flex">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control" 
+                           placeholder="Поиск по названию..." 
+                           @bind="searchQuery"
+                           @bind:event="oninput" />
+                    @if (!string.IsNullOrEmpty(searchQuery))
+                    {
+                            <button class="btn btn-outline-secondary" 
+                                    type="button" 
+                                    @onclick="ClearSearch">
+                                <i class="bi bi-x"></i>
+                            </button>
+                    }
+                </div>
+                <a href="/tour/create" class="btn btn-primary ms-2">
+                    <i class="bi bi-plus-circle me-2"></i>Создать
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты поиска -->
+    @if (!string.IsNullOrEmpty(searchQuery) && filteredTours.Any())
+    {
+            <div class="alert alert-info mb-4">
+                Найдено туров: <strong>@filteredTours.Count</strong> 
+                по запросу: "<strong>@searchQuery</strong>"
+            </div>
+    }
+    @if (!string.IsNullOrEmpty(searchQuery) && !filteredTours.Any())
+    {
+            <div class="alert alert-warning mb-4">
+                <i class="bi bi-search me-2"></i>
+                По запросу "<strong>@searchQuery</strong>" ничего не найдено.
+                <button class="btn btn-sm btn-outline-primary ms-2" @onclick="ClearSearch">
+                    Показать все туры
+                </button>
+            </div>
+    }
+
+    <!-- Список туров -->
+    @if (!displayedTours.Any())
+    {
+            <div class="alert alert-warning">
+                <h4 class="alert-heading">Туров пока нет!</h4>
+                <p>Создайте первый тур и начните своё виртуальное путешествие!</p>
+                <a href="/tour/create" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-circle me-2"></i>Создать первый тур
+                </a>
+            </div>
+    }
+    else
+    {
+            <div class="row">
+            @foreach (var tour in displayedTours)
+            {
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h5 class="card-title mb-0">@tour.Name</h5>
+                                        <span class="badge bg-info">ID: @tour.Id</span>
+                                    </div>
+
+                                    <p class="card-text text-muted mb-3">@tour.Description</p>
+
+                                    <div class="mb-3">
+                                        <h6 class="text-secondary">
+                                            <i class="bi bi-person-badge me-2"></i>Гид:
+                                        </h6>
+                                        <p class="mb-1">
+                                            <strong>@tour.Guide.Name</strong> 
+                                    @if (tour.Guide.Id == 42)
+                                    {
+                                                    <span class="badge bg-warning ms-2">Секрет 42!</span>
+                                    }
+                                        </p>
+                                        <small class="text-muted">@tour.Guide.Bio</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <h6 class="text-secondary">
+                                            <i class="bi bi-geo-alt me-2"></i>Места (@tour.Places.Count):
+                                        </h6>
+                                        <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var place in tour.Places.Take(3))
+                                    {
+                                                    <span class="badge bg-light text-dark">@place.Name</span>
+                                    }
+                                    @if (tour.Places.Count > 3)
+                                    {
+                                                    <span class="badge bg-light text-dark">+@(tour.Places.Count - 3)</span>
+                                    }
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <h6 class="text-secondary">
+                                            <i class="bi bi-star me-2"></i>Рейтинг:
+                                        </h6>
+                                        <div class="d-flex align-items-center">
+                                            <div class="text-warning me-2">
+                                        @tour.AverageRating.ToString("F1") 
+                                                <i class="bi bi-star-fill"></i>
+                                            </div>
+                                            <small class="text-muted">(@tour.TotalReviews отзывов)</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <a href="@($"/tour/{tour.Id}")" class="btn btn-outline-primary">
+                                            <i class="bi bi-eye me-2"></i>Просмотреть тур
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <small class="text-muted">
+                                        <i class="bi bi-chat-quote me-1"></i>
+                                        Последний отзыв: 
+                                @if (tour.Reviews.Any())
+                                {
+                                    @tour.Reviews.Last().UserName
+                                }
+                                else
+                                {
+                                                <span>пока нет отзывов</span>
+                                }
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+            }
+            </div>
+
+            <div class="alert alert-info mt-5" role="alert">
+                <h4 class="alert-heading">
+                    <i class="bi bi-lightbulb me-2"></i>Знаете ли вы?
+                </h4>
+                <p>
+                    Гид с ID 42 — это отсылка к книге "Автостопом по галактике" Дугласа Адамса, 
+                    где число 42 — ответ на "Главный Вопрос жизни, Вселенной и всего такого".
+                </p>
+                <hr>
+                <p class="mb-0">
+                    <strong>Совет:</strong> Не забудьте полотенце в любом путешествии! 🧻
+                </p>
+            </div>
+    }
+</div>
+
+@code {
+    private List<Tour> allTours = new();
+    private List<Tour> filteredTours = new();
+    private string searchQuery = string.Empty;
+
+    private List<Tour> displayedTours =>
+        string.IsNullOrEmpty(searchQuery) ? allTours : filteredTours;
+
+    protected override void OnInitialized()
+    {
+        allTours = TourService.GetAllTours();
+    }
+
+    private void PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filteredTours.Clear();
+        }
+        else
+        {
+            var query = searchQuery.ToLower();
+            filteredTours = allTours
+                .Where(t => t.Name.ToLower().Contains(query) ||
+                           t.Description.ToLower().Contains(query))
+                .ToList();
+        }
+    }
+
+    private void ClearSearch()
+    {
+        searchQuery = string.Empty;
+        filteredTours.Clear();
+    }
+}

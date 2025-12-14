@@ -1,0 +1,485 @@
+﻿@page "/tour/edit/{id:int}"
+@page "/tour/create"
+@using VirtualTourBlazor.Models
+@using VirtualTourBlazor.Services
+@using Microsoft.JSInterop
+@inject ITourService TourService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@Title - Виртуальный тур</PageTitle>
+
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Хлебные крошки -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/tours">Туры</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">@Title</li>
+                </ol>
+            </nav>
+
+            <!-- Заголовок -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 mb-0">@Title</h1>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" @onclick="Cancel">
+                        <i class="bi bi-x-circle me-1"></i> Отмена
+                    </button>
+                    <button class="btn btn-primary" @onclick="SaveTour">
+                        <i class="bi bi-check-circle me-1"></i> Сохранить тур
+                    </button>
+                </div>
+            </div>
+
+            <!-- Сообщения об ошибках -->
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                    @errorMessage
+                        <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                    </div>
+            }
+
+            <!-- Форма редактирования -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <!-- Основная информация -->
+                    <div class="mb-4">
+                        <h5 class="card-title mb-3">
+                            <i class="bi bi-info-circle me-2"></i> Основная информация
+                        </h5>
+
+                        <div class="mb-3">
+                            <label for="tourName" class="form-label fw-bold">
+                                Название тура *
+                            </label>
+                            <input type="text" class="form-control" id="tourName" 
+                                   @bind="tour.Name" 
+                                   placeholder="Введите название тура" />
+                            @if (validationErrors.ContainsKey("Name"))
+                            {
+                                    <div class="text-danger small">@validationErrors["Name"]</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tourDescription" class="form-label fw-bold">
+                                Описание *
+                            </label>
+                            <textarea class="form-control" id="tourDescription" rows="3"
+                                      @bind="tour.Description" 
+                                      placeholder="Опишите ваш тур"></textarea>
+                            @if (validationErrors.ContainsKey("Description"))
+                            {
+                                    <div class="text-danger small">@validationErrors["Description"]</div>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tourGuide" class="form-label fw-bold">
+                                Гид *
+                            </label>
+                            <select class="form-select" id="tourGuide" 
+                                    @bind="selectedGuideId">
+                                <option value="0">Выберите гида</option>
+                                <option value="1">Иван умный (1@mail.com)</option>
+                                <option value="2">ИИ (2@mail.com)</option>
+                                <option value="42">Астролог (42@mail.com)</option>
+                            </select>
+                            @if (validationErrors.ContainsKey("Guide"))
+                            {
+                                    <div class="text-danger small">@validationErrors["Guide"]</div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Места в туре -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-geo-alt me-2"></i> 
+                                Места (@tour.Places.Count) *
+                            </h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    @onclick="AddPlace">
+                                <i class="bi bi-plus-circle me-1"></i> 
+                                Добавить место
+                            </button>
+                        </div>
+
+                        @if (!tour.Places.Any())
+                        {
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    Добавьте хотя бы одно место в тур
+                                </div>
+                            @if (validationErrors.ContainsKey("Places"))
+                            {
+                                        <div class="text-danger small mb-3">@validationErrors["Places"]</div>
+                            }
+                        }
+                        else
+                        {
+                                <div class="list-group mb-3">
+                                @for (int i = 0; i < tour.Places.Count; i++)
+                                {
+                                    var index = i;
+                                    var place = tour.Places[i];
+
+                                            <div class="list-group-item">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <h6 class="mb-0 fw-bold">
+                                                        Место #@(index + 1)
+                                                    </h6>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-danger"
+                                                            @onclick="() => RemovePlace(index)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small">Название места *</label>
+                                                        <input type="text" 
+                                                               class="form-control form-control-sm"
+                                                               @bind="place.Name" 
+                                                               placeholder="Например: Красная площадь" />
+                                                @if (placeValidationErrors.ContainsKey($"{index}_Name"))
+                                                {
+                                                                <div class="text-danger small">@placeValidationErrors[$"{index}_Name"]</div>
+                                                }
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small">Описание</label>
+                                                        <input type="text" 
+                                                               class="form-control form-control-sm"
+                                                               @bind="place.Description" 
+                                                               placeholder="Краткое описание" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small">Широта (Latitude) *</label>
+                                                        <input type="number" 
+                                                               step="0.0001" 
+                                                               class="form-control form-control-sm"
+                                                               @bind="place.Latitude" 
+                                                               placeholder="55.7558" />
+                                                @if (placeValidationErrors.ContainsKey($"{index}_Latitude"))
+                                                {
+                                                                <div class="text-danger small">@placeValidationErrors[$"{index}_Latitude"]</div>
+                                                }
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small">Долгота (Longitude) *</label>
+                                                        <input type="number" 
+                                                               step="0.0001" 
+                                                               class="form-control form-control-sm"
+                                                               @bind="place.Longitude" 
+                                                               placeholder="37.6173" />
+                                                @if (placeValidationErrors.ContainsKey($"{index}_Longitude"))
+                                                {
+                                                                <div class="text-danger small">@placeValidationErrors[$"{index}_Longitude"]</div>
+                                                }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                }
+                                </div>
+
+                                <!-- Быстрый выбор координат -->
+                                <div class="card bg-light border-0 mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2">
+                                            <i class="bi bi-lightning me-2"></i>
+                                            Быстрый выбор городов
+                                        </h6>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary" 
+                                                    @onclick="AddMoscow">
+                                                Москва
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary" 
+                                                    @onclick="AddTyumen">
+                                                Тюмень
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary" 
+                                                    @onclick="AddSaintPetersburg">
+                                                СПб
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary" 
+                                                    @onclick="AddKazan">
+                                                Казань
+                                            </button>
+                                        </div>
+                                        <div class="form-text mt-2">
+                                            Нажмите на город, чтобы добавить его координаты в новое место
+                                        </div>
+                                    </div>
+                                </div>
+                        }
+                    </div>
+
+                    <!-- Карта для проверки координат -->
+                    @if (tour.Places.Any())
+                    {
+                            <div class="mb-4">
+                                <h5 class="card-title mb-3">
+                                    <i class="bi bi-map me-2"></i> 
+                                    Предварительный просмотр на карте
+                                </h5>
+                                <div id="previewMap" 
+                                     style="height: 300px; width: 100%; border-radius: 8px;">
+                                </div>
+                                <div class="form-text mt-2">
+                                    Проверьте правильность расположения маркеров
+                                </div>
+                            </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Tour tour = new();
+    private int selectedGuideId = 0;
+    private string Title => Id == 0 ? "Создание тура" : "Редактирование тура";
+    private bool isEditMode => Id > 0;
+    private bool mapInitialized = false;
+    private string errorMessage = string.Empty;
+    private Dictionary<string, string> validationErrors = new();
+    private Dictionary<string, string> placeValidationErrors = new();
+
+    protected override void OnInitialized()
+    {
+        if (isEditMode)
+        {
+            var existingTour = TourService.GetTourById(Id);
+            if (existingTour != null)
+            {
+                tour = existingTour;
+                selectedGuideId = existingTour.Guide?.Id ?? 0;
+            }
+        }
+        else
+        {
+            // Для нового тура создаем пустое место по умолчанию
+            tour.Places.Add(new Place());
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && tour.Places.Any())
+        {
+            await InitializePreviewMap();
+            mapInitialized = true;
+        }
+        else if (mapInitialized)
+        {
+            await UpdatePreviewMap();
+        }
+    }
+
+    private async Task InitializePreviewMap()
+    {
+        if (!tour.Places.Any()) return;
+
+        var avgLat = tour.Places.Average(p => p.Latitude);
+        var avgLng = tour.Places.Average(p => p.Longitude);
+
+        await JSRuntime.InvokeVoidAsync(
+            "mapFunctions.initMap",
+            "previewMap",
+            avgLat,
+            avgLng,
+            12);
+
+        await UpdatePreviewMap();
+    }
+
+    private async Task UpdatePreviewMap()
+    {
+        if (!tour.Places.Any()) return;
+
+        await JSRuntime.InvokeVoidAsync(
+            "mapFunctions.clearMarkers",
+            "previewMap");
+
+        foreach (var place in tour.Places)
+        {
+            await JSRuntime.InvokeVoidAsync(
+                "mapFunctions.addMarker",
+                "previewMap",
+                place.Latitude,
+                place.Longitude,
+                place.Name,
+                place.Description);
+        }
+
+        await JSRuntime.InvokeVoidAsync(
+            "mapFunctions.fitBounds",
+            "previewMap");
+    }
+
+    private void AddPlace()
+    {
+        tour.Places.Add(new Place());
+        StateHasChanged();
+    }
+
+    private void RemovePlace(int index)
+    {
+        if (tour.Places.Count > index)
+        {
+            tour.Places.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private void AddQuickPlace(string name, string description, double lat, double lng)
+    {
+        tour.Places.Add(new Place
+            {
+                Name = name,
+                Description = description,
+                Latitude = lat,
+                Longitude = lng
+            });
+
+        StateHasChanged();
+    }
+
+    // Методы для быстрого добавления городов
+    private void AddMoscow() => AddQuickPlace("Москва", "Столица России", 55.7558, 37.6173);
+    private void AddTyumen() => AddQuickPlace("Тюмень", "Первая столица Сибири", 57.1522, 65.5272);
+    private void AddSaintPetersburg() => AddQuickPlace("Санкт-Петербург", "Северная столица", 59.9343, 30.3351);
+    private void AddKazan() => AddQuickPlace("Казань", "Третья столица", 55.7961, 49.1064);
+
+    private bool ValidateTour()
+    {
+        validationErrors.Clear();
+        placeValidationErrors.Clear();
+        bool isValid = true;
+
+        // Проверка основных полей
+        if (string.IsNullOrWhiteSpace(tour.Name))
+        {
+            validationErrors["Name"] = "Название тура обязательно";
+            isValid = false;
+        }
+
+        if (string.IsNullOrWhiteSpace(tour.Description))
+        {
+            validationErrors["Description"] = "Описание тура обязательно";
+            isValid = false;
+        }
+
+        if (selectedGuideId == 0)
+        {
+            validationErrors["Guide"] = "Выберите гида";
+            isValid = false;
+        }
+
+        // Проверка мест
+        if (!tour.Places.Any())
+        {
+            validationErrors["Places"] = "Добавьте хотя бы одно место";
+            isValid = false;
+        }
+        else
+        {
+            for (int i = 0; i < tour.Places.Count; i++)
+            {
+                var place = tour.Places[i];
+
+                if (string.IsNullOrWhiteSpace(place.Name))
+                {
+                    placeValidationErrors[$"{i}_Name"] = "Название места обязательно";
+                    isValid = false;
+                }
+
+                if (place.Latitude == 0)
+                {
+                    placeValidationErrors[$"{i}_Latitude"] = "Широта не может быть нулевой";
+                    isValid = false;
+                }
+
+                if (place.Longitude == 0)
+                {
+                    placeValidationErrors[$"{i}_Longitude"] = "Долгота не может быть нулевой";
+                    isValid = false;
+                }
+            }
+        }
+
+        return isValid;
+    }
+
+    private async Task SaveTour()
+    {
+        if (!ValidateTour())
+        {
+            errorMessage = "Исправьте ошибки в форме";
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            // Устанавливаем гида
+            if (selectedGuideId > 0)
+            {
+                tour.Guide = selectedGuideId switch
+                {
+                    1 => new Guide { Id = 1, Name = "Иван умный", Email = "1@mail.com", Bio = "Опытный гид" },
+                    2 => new Guide { Id = 2, Name = "ИИ", Email = "2@mail.com", Bio = "Историк" },
+                    42 => new Guide { Id = 42, Name = "Астролог", Email = "42@mail.com", Bio = "Архитектор" },
+                    _ => new Guide()
+                };
+            }
+
+            // Сохраняем тур
+            if (isEditMode)
+            {
+                TourService.UpdateTour(tour);
+            }
+            else
+            {
+                TourService.AddTour(tour);
+            }
+
+            // Перенаправляем на страницу тура
+            Navigation.NavigateTo($"/tour/{tour.Id}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка при сохранении: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(isEditMode ? $"/tour/{Id}" : "/tours");
+    }
+}
